@@ -1,11 +1,5 @@
 package br.edu.idp.mcdia.dl.judscraper;
 
-import br.edu.idp.mcdia.dl.judscraper.model.DatajudResponse;
-import br.edu.idp.mcdia.dl.judscraper.model.Processo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import tools.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -21,11 +15,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
-/**
- * Cliente HTTP simples para o endpoint público do Datajud referente ao TJRS.
- * As configurações e credenciais são carregadas a partir de um arquivo de propriedades
- * presente no classpath e podem ser sobrescritas por variáveis de ambiente.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import br.edu.idp.mcdia.dl.judscraper.model.DatajudResponse;
+import br.edu.idp.mcdia.dl.judscraper.model.Processo;
+import tools.jackson.databind.ObjectMapper;
+
 public class DatajudClient {
 
     private static final String PROPERTIES_FILE = "datajud.properties";
