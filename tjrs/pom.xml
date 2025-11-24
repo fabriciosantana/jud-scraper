@@ -12,4 +12,8 @@
         <maven.release>21</maven.release>
     </properties>
 
+    <dependencies>
+    </dependencies>
+    
+
 </project>
