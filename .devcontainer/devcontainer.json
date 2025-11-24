@@ -1,0 +1,56 @@
+{
+  "name": "Java dev box",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "runArgs": ["--privileged"],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "alexcvzz.vscode-sqlite",
+        "analytic-signal.preview-pdf",
+        "antfu.slidev",
+        "aquasecurityofficial.trivy-vulnerability-scanner",
+        "codium.codium",
+        "cweijan.dbclient-jdbc",
+        "cweijan.vscode-database-client2",
+        "github.codespaces",
+        "github.copilot",
+        "github.copilot-chat",
+        "github.remotehub",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "google.gemini-cli-vscode-ide-companion",
+        "google.geminicodeassist",
+        "jebbs.plantuml",
+        "mermaidchart.vscode-mermaid-chart",
+        "mhutchie.git-graph",
+        "mongodb.mongodb-vscode",
+        "ms-azuretools.vscode-containers",
+        "ms-azuretools.vscode-docker",
+        "ms-ossdata.vscode-pgsql",
+        "ms-vscode.azure-repos",
+        "ms-vscode.remote-repositories",
+        "ms-vsliveshare.vsliveshare",
+        "openai.chatgpt",
+        "oracle.oracle-java",
+        "postman.postman-for-vscode",
+        "redhat.java",
+        "sonarsource.sonarlint-vscode",
+        "visualstudioexptteam.intellicode-api-usage-examples",
+        "visualstudioexptteam.vscodeintellicode",
+        "vmware.vscode-boot-dev-pack",
+        "vmware.vscode-spring-boot",
+        "vscjava.vscode-gradle",
+        "vscjava.vscode-java-debug",
+        "vscjava.vscode-java-dependency",
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-java-test",
+        "vscjava.vscode-maven",
+        "vscjava.vscode-spring-boot-dashboard",
+        "vscjava.vscode-spring-initializr",
+        "vue.volar"
+      ]
+    }
+  }
+}
