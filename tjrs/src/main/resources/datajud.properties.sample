@@ -1,6 +1,6 @@
 datajud.api.url=https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search
 datajud.api.key=cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==
-datajud.db.url=jdbc:postgresql://ep-orange-paper-ahlibm4q-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+datajud.db.url=jdbc:postgresql://[HOST]/neondb?sslmode=require&channel_binding=require
 datajud.db.user=neondb_owner
-datajud.db.password=npg_vjTCo0NWEH8V
+datajud.db.password=[PASSWORD]
 datajud.db.table=processos_datajud
