@@ -34,7 +34,7 @@ SELECT *
 FROM public.vw_processos_datajud
 ORDER BY id;
 
--- Exemplo expandindo assuntos em linhas (cada assunto por registro)
+-- expandindo assuntos em linhas (cada assunto por registro)
 SELECT
     p.numero_processo,
     assunto_elem ->> 'codigo' AS assunto_codigo,
@@ -42,11 +42,12 @@ SELECT
 FROM public.processos_datajud p
     CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'assuntos') AS assunto_elem;
 
--- Exemplo expandindo movimentos
+-- expandindo movimentos
 SELECT
     p.numero_processo,
     movimento_elem ->> 'codigo'   AS movimento_codigo,
     movimento_elem ->> 'nome'     AS movimento_nome,
     movimento_elem ->> 'dataHora' AS movimento_datahora
 FROM public.processos_datajud p
-    CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'movimentos') AS movimento_elem;
+    CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'movimentos') AS movimento_elem
+WHERE movimento_elem ->> 'nome' = 'Sentença';
