@@ -51,3 +51,6 @@ SELECT
 FROM public.processos_datajud p
     CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'movimentos') AS movimento_elem
 --WHERE movimento_elem ->> 'nome' = 'Sentença';
+
+
+select count(*) from processos_datajud
