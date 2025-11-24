@@ -50,4 +50,4 @@ SELECT
     movimento_elem ->> 'dataHora' AS movimento_datahora
 FROM public.processos_datajud p
     CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'movimentos') AS movimento_elem
-WHERE movimento_elem ->> 'nome' = 'Sentença';
+--WHERE movimento_elem ->> 'nome' = 'Sentença';
