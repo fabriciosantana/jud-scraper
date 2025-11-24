@@ -1,6 +1,7 @@
 package br.edu.idp.mcdia.dl.judscraper.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
 
 public class Processo {
@@ -21,6 +22,7 @@ public class Processo {
     private String id;
     private Integer nivelSigilo;
     private OrgaoJulgador orgaoJulgador;
+    @JsonDeserialize(using = AssuntoListDeserializer.class)
     private List<Assunto> assuntos;
 
     public String getNumeroProcesso() {
