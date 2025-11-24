@@ -1,7 +1,6 @@
 package br.edu.idp.mcdia.dl.judscraper;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -13,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,27 +22,26 @@ import tools.jackson.databind.ObjectMapper;
 
 public class DatajudClient {
 
-    private static final String PROPERTIES_FILE = "datajud.properties";
     private static final Logger LOGGER = LoggerFactory.getLogger(DatajudClient.class);
-    private static final Properties CONFIG = loadProperties();
-    private static final String API_URL = requireProperty("datajud.api.url");
+    private static final AppConfig CONFIG = AppConfig.load();
+    private static final String API_URL = CONFIG.require("datajud.api.url");
     private static final String DEFAULT_API_KEY = System.getenv().getOrDefault(
             "DATAJUD_API_KEY",
-            requireProperty("datajud.api.key")
+            CONFIG.require("datajud.api.key")
     );
     private static final String DB_URL = System.getenv().getOrDefault(
             "DATAJUD_DB_URL",
-            requireProperty("datajud.db.url")
+            CONFIG.require("datajud.db.url")
     );
     private static final String DB_USER = System.getenv().getOrDefault(
             "DATAJUD_DB_USER",
-            requireProperty("datajud.db.user")
+            CONFIG.require("datajud.db.user")
     );
     private static final String DB_PASSWORD = System.getenv().getOrDefault(
             "DATAJUD_DB_PASSWORD",
-            requireProperty("datajud.db.password")
+            CONFIG.require("datajud.db.password")
     );
-    private static final String DB_TABLE = CONFIG.getProperty("datajud.db.table", "processos_datajud").trim();
+    private static final String DB_TABLE = CONFIG.getOrDefault("datajud.db.table", "processos_datajud");
     private static final int MAX_RESULTADOS = 100;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -140,28 +137,6 @@ public class DatajudClient {
         builder.append("  }\n")
                 .append("}\n");
         return builder.toString();
-    }
-
-    private static Properties loadProperties() {
-        Properties props = new Properties();
-        InputStream resource = DatajudClient.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE);
-        if (resource == null) {
-            throw new IllegalStateException("Arquivo de propriedades '" + PROPERTIES_FILE + "' não encontrado.");
-        }
-        try (InputStream input = resource) {
-            props.load(input);
-            return props;
-        } catch (IOException e) {
-            throw new IllegalStateException("Falha ao carregar as configurações do Datajud.", e);
-        }
-    }
-
-    private static String requireProperty(String key) {
-        String value = CONFIG.getProperty(key);
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException("Propriedade obrigatória ausente: " + key);
-        }
-        return value.trim();
     }
 
     public static void main(String[] args) {

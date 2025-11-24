@@ -8,6 +8,8 @@ SELECT
     p.orgao_julgador,
     p.atualizado_em,
     p.data_ultima_atualizacao,
+    p.sentenca_caminho,
+    p.sentenca_salva_em,
     p.payload,
     p.payload ->> 'tribunal'                             AS tribunal,
     p.payload ->> '@timestamp'                          AS payload_timestamp,

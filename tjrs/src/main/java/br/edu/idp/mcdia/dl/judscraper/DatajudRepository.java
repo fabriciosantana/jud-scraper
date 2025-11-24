@@ -1,6 +1,7 @@
 package br.edu.idp.mcdia.dl.judscraper;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -8,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -54,12 +56,16 @@ public class DatajudRepository implements AutoCloseable {
                 "orgao_julgador TEXT," +
                 "payload JSONB NOT NULL," +
                 "data_ultima_atualizacao TIMESTAMPTZ," +
+                "sentenca_caminho TEXT," +
+                "sentenca_salva_em TIMESTAMPTZ," +
                 "atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()," +
                 "CONSTRAINT uq_numero_processo UNIQUE (numero_processo)" +
                 ")";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
             stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS data_ultima_atualizacao TIMESTAMPTZ");
+            stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_caminho TEXT");
+            stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_salva_em TIMESTAMPTZ");
             LOGGER.info("Tabela {} disponível para persistência.", tableName);
         }
     }
@@ -74,6 +80,34 @@ public class DatajudRepository implements AutoCloseable {
                 return data;
             }
             return null;
+        }
+    }
+
+    public List<String> listarProcessosParaSentenca(int limit, int offset, boolean apenasPendentes) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT numero_processo FROM " + tableName);
+        if (apenasPendentes) {
+            sql.append(" WHERE sentenca_caminho IS NULL");
+        }
+        sql.append(" ORDER BY id LIMIT ? OFFSET ?");
+
+        try (PreparedStatement ps = connection.prepareStatement(sql.toString())) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            ResultSet rs = ps.executeQuery();
+            List<String> numeros = new java.util.ArrayList<>();
+            while (rs.next()) {
+                numeros.add(rs.getString(1));
+            }
+            return numeros;
+        }
+    }
+
+    public void registrarSentenca(String numeroProcesso, java.nio.file.Path arquivo) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET sentenca_caminho = ?, sentenca_salva_em = NOW() WHERE numero_processo = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, arquivo != null ? arquivo.toString() : null);
+            ps.setString(2, numeroProcesso);
+            ps.executeUpdate();
         }
     }
 
