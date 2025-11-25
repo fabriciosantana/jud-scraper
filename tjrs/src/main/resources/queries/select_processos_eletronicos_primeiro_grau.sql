@@ -12,10 +12,18 @@ JOIN public.vw_processos_datajud p ON p.numero_processo = f.numero_processo
 JOIN public.vw_processos_sistema s ON s.numero_processo = f.numero_processo
 JOIN public.vw_processos_classe c ON c.numero_processo = f.numero_processo
 JOIN public.vw_processos_movimentos m ON m.numero_processo = f.numero_processo
+JOIN public.vw_processos_orgao_julgador o on o.numero_processo = f.numero_processo
 WHERE 1 = 1 
 AND f.formato_codigo = '1'
 AND p.grau = 'G1'
 AND s.sistema_codigo = '4'
 AND c.classe_codigo = '7'
-AND (m.movimento_codigo = '219' OR m.movimento_codigo = '220');
+AND (m.movimento_codigo = '219' OR m.movimento_codigo = '220')
+AND o.orgao_municipio_ibge = '4314902'
 ;
+
+select * from vw_processos_orgao_julgador
+where numero_processo = '50097706920208210001';
+
+select * from vw_processos_movimentos_orgao
+where numero_processo = '50097706920208210001';
