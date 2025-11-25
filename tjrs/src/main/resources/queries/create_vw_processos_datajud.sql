@@ -1,4 +1,3 @@
--- Visão com as colunas principais diretamente acessíveis
 CREATE OR REPLACE VIEW public.vw_processos_datajud AS
 SELECT
     p.id,
@@ -30,29 +29,3 @@ SELECT
     jsonb_array_length(COALESCE(p.payload -> 'movimentos', '[]'::jsonb)) AS qtde_movimentos,
     COALESCE((p.payload -> 'movimentos' -> 0) ->> 'dataHora', p.payload ->> 'dataHoraUltimaAtualizacao') AS primeiro_movimento_data
 FROM public.processos_datajud p;
-
--- Consulta padrão utilizando a visão
-SELECT *
-FROM public.vw_processos_datajud
-ORDER BY id;
-
--- expandindo assuntos em linhas (cada assunto por registro)
-SELECT
-    p.numero_processo,
-    assunto_elem ->> 'codigo' AS assunto_codigo,
-    assunto_elem ->> 'nome'   AS assunto_nome
-FROM public.processos_datajud p
-    CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'assuntos') AS assunto_elem;
-
--- expandindo movimentos
-SELECT
-    p.numero_processo,
-    movimento_elem ->> 'codigo'   AS movimento_codigo,
-    movimento_elem ->> 'nome'     AS movimento_nome,
-    movimento_elem ->> 'dataHora' AS movimento_datahora
-FROM public.processos_datajud p
-    CROSS JOIN LATERAL jsonb_array_elements(p.payload -> 'movimentos') AS movimento_elem
---WHERE movimento_elem ->> 'nome' = 'Sentença';
-
-
-select count(*) from processos_datajud
