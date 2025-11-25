@@ -101,19 +101,21 @@ public class DatajudClient {
 
     private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, List<String> searchAfter) {
         String termoSanitizado = termoLivre.replace("\"", "\\\"");
-        StringBuilder builder = new StringBuilder();
-        builder.append("{\n")
-                .append("  \"size\": ").append(quantidadeResultados).append(",\n")
-                .append("  \"query\": {\n")
-                .append("    \"query_string\": {\n")
-                .append("      \"query\": \"").append(termoSanitizado).append("\",\n")
-                .append("      \"default_operator\": \"AND\"\n")
-                .append("    }\n")
-                .append("  },\n")
-                .append("  \"sort\": [\n")
-                .append("    {\"dataHoraUltimaAtualizacao\": {\"order\": \"asc\", \"unmapped_type\": \"date\"}},\n")
-                .append("    {\"numeroProcesso.keyword\": {\"order\": \"asc\"}}\n")
-                .append("  ]");
+        String payloadTemplate = """
+                {
+                  "size": %d,
+                  "query": {
+                    "query_string": {
+                      "query": "%s",
+                      "default_operator": "AND"
+                    }
+                  },
+                  "sort": [
+                    {"dataHoraUltimaAtualizacao": {"order": "asc", "unmapped_type": "date"}},
+                    {"numeroProcesso.keyword": {"order": "asc"}}
+                  ]""";
+
+        StringBuilder builder = new StringBuilder(String.format(payloadTemplate, quantidadeResultados, termoSanitizado));
 
         if (searchAfter != null && !searchAfter.isEmpty()) {
             builder.append(",\n  \"search_after\": [");
