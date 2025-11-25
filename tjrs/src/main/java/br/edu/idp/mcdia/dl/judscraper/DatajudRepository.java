@@ -106,6 +106,20 @@ public class DatajudRepository implements AutoCloseable {
         }
     }
 
+    public void truncarCursor() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("TRUNCATE TABLE " + cursorTable);
+            LOGGER.info("Tabela de cursor '{}' truncada.", cursorTable);
+        }
+    }
+
+    public void truncarProcessos() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("TRUNCATE TABLE " + tableName + " RESTART IDENTITY");
+            LOGGER.info("Tabela de processos '{}' truncada.", tableName);
+        }
+    }
+
     public List<String> carregarCursor() throws SQLException {
         String sql = "SELECT cursor FROM " + cursorTable + " WHERE id = 1";
         try (Statement stmt = connection.createStatement();

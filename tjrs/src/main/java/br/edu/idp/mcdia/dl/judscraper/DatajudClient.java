@@ -131,12 +131,22 @@ public class DatajudClient {
     }
 
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.err.println("Uso: mvn exec:java -Dexec.args=\"<quantidade>\"");
-            return;
+        boolean resetCursor = false;
+        boolean resetFull = false;
+        Integer totalRegistros = null;
+
+        for (String arg : args) {
+            if ("--reset-full".equalsIgnoreCase(arg)) {
+                resetFull = true;
+                resetCursor = true;
+            } else if ("--reset".equalsIgnoreCase(arg)) {
+                resetCursor = true;
+            } else if (totalRegistros == null) {
+                totalRegistros = Integer.parseInt(arg);
+            }
         }
-        int totalRegistros = Integer.parseInt(args[0]);
-        if (totalRegistros <= 0) {
+
+        if (totalRegistros == null || totalRegistros <= 0) {
             System.err.println("A quantidade deve ser maior que zero.");
             return;
         }
@@ -149,8 +159,14 @@ public class DatajudClient {
         int chamadasApi = 0;
 
         try (DatajudRepository repository = new DatajudRepository(DB_URL, DB_USER, DB_PASSWORD, DB_TABLE, OBJECT_MAPPER)) {
+            if (resetFull) {
+                repository.truncarProcessos();
+            }
+            if (resetCursor) {
+                repository.truncarCursor();
+            }
             int processados = 0;
-            List<String> cursor = repository.carregarCursor();
+            List<String> cursor = resetCursor ? Collections.emptyList() : repository.carregarCursor();
             while (processados < totalRegistros) {
                 int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
                 long inicioChamada = System.nanoTime();
