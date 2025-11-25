@@ -8,7 +8,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -55,7 +54,6 @@ public class DatajudRepository implements AutoCloseable {
                 "classe TEXT," +
                 "orgao_julgador TEXT," +
                 "payload JSONB NOT NULL," +
-                "data_ultima_atualizacao TIMESTAMPTZ," +
                 "sentenca_caminho TEXT," +
                 "sentenca_salva_em TIMESTAMPTZ," +
                 "atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()," +
@@ -63,23 +61,9 @@ public class DatajudRepository implements AutoCloseable {
                 ")";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
-            stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS data_ultima_atualizacao TIMESTAMPTZ");
             stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_caminho TEXT");
             stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_salva_em TIMESTAMPTZ");
             LOGGER.info("Tabela {} disponível para persistência.", tableName);
-        }
-    }
-
-    public OffsetDateTime buscarUltimaDataAtualizacao() throws SQLException {
-        String sql = "SELECT MAX(data_ultima_atualizacao) FROM " + tableName;
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                OffsetDateTime data = rs.getObject(1, OffsetDateTime.class);
-                LOGGER.info("Última data de atualização encontrada: {}", data);
-                return data;
-            }
-            return null;
         }
     }
 
@@ -118,14 +102,13 @@ public class DatajudRepository implements AutoCloseable {
         }
 
         LOGGER.info("Persistindo {} processos na tabela {}", processos.size(), tableName);
-        String sql = "INSERT INTO " + tableName + " (numero_processo, grau, classe, orgao_julgador, payload, data_ultima_atualizacao) " +
-                "VALUES (?, ?, ?, ?, ?::jsonb, ?) " +
+        String sql = "INSERT INTO " + tableName + " (numero_processo, grau, classe, orgao_julgador, payload) " +
+                "VALUES (?, ?, ?, ?, ?::jsonb) " +
                 "ON CONFLICT (numero_processo) DO UPDATE SET " +
                 "grau = EXCLUDED.grau, " +
                 "classe = EXCLUDED.classe, " +
                 "orgao_julgador = EXCLUDED.orgao_julgador, " +
                 "payload = EXCLUDED.payload, " +
-                "data_ultima_atualizacao = EXCLUDED.data_ultima_atualizacao, " +
                 "atualizado_em = NOW()";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -139,23 +122,10 @@ public class DatajudRepository implements AutoCloseable {
                 ps.setString(3, processo.getClasse() != null ? processo.getClasse().getNome() : null);
                 ps.setString(4, processo.getOrgaoJulgador() != null ? processo.getOrgaoJulgador().getNome() : null);
                 ps.setString(5, objectMapper.writeValueAsString(processo));
-                ps.setObject(6, parseDataHora(processo.getDataHoraUltimaAtualizacao()));
                 ps.addBatch();
             }
             ps.executeBatch();
             LOGGER.info("Persistência concluída na tabela {}.", tableName);
-        }
-    }
-
-    private OffsetDateTime parseDataHora(String valor) {
-        if (valor == null || valor.isBlank()) {
-            return null;
-        }
-        try {
-            return OffsetDateTime.parse(valor);
-        } catch (Exception e) {
-            LOGGER.warn("Não foi possível converter dataHora '{}': {}", valor, e.getMessage());
-            return null;
         }
     }
 

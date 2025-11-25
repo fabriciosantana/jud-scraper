@@ -6,8 +6,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +40,7 @@ public class DatajudClient {
             CONFIG.require("datajud.db.password")
     );
     private static final String DB_TABLE = CONFIG.getOrDefault("datajud.db.table", "processos_datajud");
+    private static final String DEFAULT_TERM = CONFIG.getOrDefault("datajud.default.term", "improbidade administrativa");
     private static final int MAX_RESULTADOS = 100;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -66,7 +65,7 @@ public class DatajudClient {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
     }
 
-    public DatajudResponse buscarSentencas(String termoLivre, int tamanhoLote, int inicio, OffsetDateTime atualizadoApos)
+    public DatajudResponse buscarSentencas(String termoLivre, int tamanhoLote, int inicio)
             throws IOException, InterruptedException {
 
         if (termoLivre == null || termoLivre.isBlank()) {
@@ -77,9 +76,8 @@ public class DatajudClient {
             throw new IllegalArgumentException("O tamanho do lote deve estar entre 1 e " + MAX_RESULTADOS + ".");
         }
 
-        String payload = montarPayloadBuscaLivre(termoLivre, tamanhoLote, inicio, atualizadoApos);
-        LOGGER.info("Consultando Datajud (from={}, size={}) termo '{}' {}", inicio, tamanhoLote, termoLivre,
-                atualizadoApos != null ? "após " + atualizadoApos : "");
+        String payload = montarPayloadBuscaLivre(termoLivre, tamanhoLote, inicio);
+        LOGGER.info("Consultando Datajud (from={}, size={}) termo '{}'", inicio, tamanhoLote, termoLivre);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
@@ -101,66 +99,49 @@ public class DatajudClient {
         throw new IOException("Falha ao consultar o Datajud. HTTP " + statusCode + " - " + response.body());
     }
 
-    private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, int inicio, OffsetDateTime atualizadoApos) {
+    private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, int inicio) {
         String termoSanitizado = termoLivre.replace("\"", "\\\"");
         StringBuilder builder = new StringBuilder();
         builder.append("{\n")
                 .append("  \"size\": ").append(quantidadeResultados).append(",\n")
                 .append("  \"from\": ").append(inicio).append(",\n")
-                .append("  \"query\": {\n");
-
-        if (atualizadoApos != null) {
-            builder.append("    \"bool\": {\n")
-                    .append("      \"must\": {\n")
-                    .append("        \"query_string\": {\n")
-                    .append("          \"query\": \"").append(termoSanitizado).append("\",\n")
-                    .append("          \"default_operator\": \"AND\"\n")
-                    .append("        }\n")
-                    .append("      },\n")
-                    .append("      \"filter\": [\n")
-                    .append("        {\n")
-                    .append("          \"range\": {\n")
-                    .append("            \"dataHoraUltimaAtualizacao\": {\n")
-                    .append("              \"gt\": \"").append(atualizadoApos).append("\"\n")
-                    .append("            }\n")
-                    .append("          }\n")
-                    .append("        }\n")
-                    .append("      ]\n")
-                    .append("    }\n");
-        } else {
-            builder.append("    \"query_string\": {\n")
-                    .append("      \"query\": \"").append(termoSanitizado).append("\",\n")
-                    .append("      \"default_operator\": \"AND\"\n")
-                    .append("    }\n");
-        }
-
-        builder.append("  }\n")
+                .append("  \"query\": {\n")
+                .append("    \"query_string\": {\n")
+                .append("      \"query\": \"").append(termoSanitizado).append("\",\n")
+                .append("      \"default_operator\": \"AND\"\n")
+                .append("    }\n")
+                .append("  }\n")
                 .append("}\n");
         return builder.toString();
     }
 
     public static void main(String[] args) {
+        if (args.length < 1) {
+            System.err.println("Uso: mvn exec:java -Dexec.args=\"<quantidade>\"");
+            return;
+        }
+        int totalRegistros = Integer.parseInt(args[0]);
+        if (totalRegistros <= 0) {
+            System.err.println("A quantidade deve ser maior que zero.");
+            return;
+        }
+
         DatajudClient scraper = new DatajudClient();
-        String termo = args.length > 0 ? args[0] : "improbidade administrativa";
-        int limite = args.length > 1 ? Integer.parseInt(args[1]) : 5;
-        int offsetInicial = args.length > 2 ? Integer.parseInt(args[2]) : 0;
-        boolean cargaCompleta = args.length > 3 && Boolean.parseBoolean(args[3]);
 
         try (DatajudRepository repository = new DatajudRepository(DB_URL, DB_USER, DB_PASSWORD, DB_TABLE, OBJECT_MAPPER)) {
-            OffsetDateTime ultimaAtualizacao = cargaCompleta ? null : ajustarJanelaTemporal(repository.buscarUltimaDataAtualizacao());
-            int restante = limite;
-            int offset = Math.max(0, offsetInicial);
-            while (restante > 0) {
-                int tamanhoLote = Math.min(MAX_RESULTADOS, restante);
-                DatajudResponse resultado = scraper.buscarSentencas(termo, tamanhoLote, offset, ultimaAtualizacao);
-                imprimirResumo(resultado, ultimaAtualizacao);
+            int processados = 0;
+            int offset = 0;
+            while (processados < totalRegistros) {
+                int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
+                DatajudResponse resultado = scraper.buscarSentencas(DEFAULT_TERM, tamanhoLote, offset);
+                imprimirResumo(resultado);
                 boolean persistiu = salvarProcessosNoBanco(repository, resultado);
                 if (!persistiu || resultado.getHits() == null || resultado.getHits().getHits() == null
                         || resultado.getHits().getHits().isEmpty()) {
                     LOGGER.info("Nenhum resultado retornado neste lote; encerrando paginação.");
                     break;
                 }
-                restante -= tamanhoLote;
+                processados += resultado.getHits().getHits().size();
                 offset += tamanhoLote;
             }
         } catch (Exception e) {
@@ -169,7 +150,7 @@ public class DatajudClient {
         }
     }
 
-    private static void imprimirResumo(DatajudResponse response, OffsetDateTime filtroAtualizacao) {
+    private static void imprimirResumo(DatajudResponse response) {
         if (response == null || response.getHits() == null || response.getHits().getHits() == null) {
             System.out.println("Nenhum resultado retornado pelo Datajud.");
             LOGGER.info("Nenhum resultado retornado pelo Datajud.");
@@ -179,12 +160,7 @@ public class DatajudClient {
 
         List<DatajudResponse.ProcessHit> hits = response.getHits().getHits();
         System.out.printf("Total de resultados retornados: %d%n", hits.size());
-        if (filtroAtualizacao != null) {
-            System.out.printf("Filtrados para atualizações posteriores a %s.%n", filtroAtualizacao);
-            LOGGER.info("Total de resultados retornados: {} (após {}).", hits.size(), filtroAtualizacao);
-        } else {
-            LOGGER.info("Total de resultados retornados: {}", hits.size());
-        }
+        LOGGER.info("Total de resultados retornados: {}", hits.size());
         for (DatajudResponse.ProcessHit hit : hits) {
             Processo processo = hit.getProcesso();
             if (processo == null) {
@@ -233,16 +209,4 @@ public class DatajudClient {
         return processos;
     }
 
-    private static OffsetDateTime ajustarJanelaTemporal(OffsetDateTime ultimaAtualizacao) {
-        if (ultimaAtualizacao == null) {
-            return null;
-        }
-        OffsetDateTime agoraUtc = OffsetDateTime.now(ZoneOffset.UTC);
-        if (ultimaAtualizacao.isAfter(agoraUtc)) {
-            OffsetDateTime ajustada = agoraUtc.minusMinutes(1);
-            LOGGER.warn("Última data de atualização ({}) está no futuro. Ajustando janela para {}.", ultimaAtualizacao, ajustada);
-            return ajustada;
-        }
-        return ultimaAtualizacao;
-    }
 }
