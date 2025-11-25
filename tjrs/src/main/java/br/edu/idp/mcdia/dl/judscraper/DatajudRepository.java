@@ -186,14 +186,14 @@ public class DatajudRepository implements AutoCloseable {
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (Processo processo : processos) {
-                if (processo == null || processo.getNumeroProcesso() == null || processo.getNumeroProcesso().isBlank()) {
+                if (processo == null || processo.numeroProcesso() == null || processo.numeroProcesso().isBlank()) {
                     LOGGER.warn("Processo ignorado por não possuir número válido.");
                     continue;
                 }
-                ps.setString(1, processo.getNumeroProcesso());
-                ps.setString(2, processo.getGrau());
-                ps.setString(3, processo.getClasse() != null ? processo.getClasse().getNome() : null);
-                ps.setString(4, processo.getOrgaoJulgador() != null ? processo.getOrgaoJulgador().getNome() : null);
+                ps.setString(1, processo.numeroProcesso());
+                ps.setString(2, processo.grau());
+                ps.setString(3, processo.classe() != null ? processo.classe().nome() : null);
+                ps.setString(4, processo.orgaoJulgador() != null ? processo.orgaoJulgador().nome() : null);
                 ps.setString(5, objectMapper.writeValueAsString(processo));
                 ps.addBatch();
             }

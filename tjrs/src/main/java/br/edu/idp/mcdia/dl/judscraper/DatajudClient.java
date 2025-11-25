@@ -178,17 +178,17 @@ public class DatajudClient {
                 chamadasApi++;
                 LOGGER.info("Chamada #{} retornou {} registros em {} ms",
                         chamadasApi,
-                        resultado != null && resultado.getHits() != null ? resultado.getHits().getHits().size() : 0,
+                        resultado != null && resultado.hits() != null ? resultado.hits().hits().size() : 0,
                         Duration.ofNanos(duracaoChamada).toMillis());
 
                 imprimirResumo(resultado);
                 boolean persistiu = salvarProcessosNoBanco(repository, resultado);
-                if (!persistiu || resultado.getHits() == null || resultado.getHits().getHits() == null
-                        || resultado.getHits().getHits().isEmpty()) {
+                if (!persistiu || resultado == null || resultado.hits() == null
+                        || resultado.hits().hits() == null || resultado.hits().hits().isEmpty()) {
                     LOGGER.info("Nenhum resultado retornado neste lote; encerrando paginação.");
                     break;
                 }
-                processados += resultado.getHits().getHits().size();
+                processados += resultado.hits().hits().size();
                 cursor = extrairCursor(resultado);
                 if (!cursor.isEmpty()) {
                     repository.salvarCursor(cursor);
@@ -206,28 +206,28 @@ public class DatajudClient {
     }
 
     private static void imprimirResumo(DatajudResponse response) {
-        if (response == null || response.getHits() == null || response.getHits().getHits() == null) {
+        if (response == null || response.hits() == null || response.hits().hits() == null) {
             System.out.println("Nenhum resultado retornado pelo Datajud.");
             LOGGER.info("Nenhum resultado retornado pelo Datajud.");
             System.out.flush();
             return;
         }
 
-        List<DatajudResponse.ProcessHit> hits = response.getHits().getHits();
+        List<DatajudResponse.ProcessHit> hits = response.hits().hits();
         System.out.printf("Total de resultados retornados: %d%n", hits.size());
         LOGGER.info("Total de resultados retornados: {}", hits.size());
         for (DatajudResponse.ProcessHit hit : hits) {
-            Processo processo = hit.getProcesso();
+            Processo processo = hit.processo();
             if (processo == null) {
                 continue;
             }
-            String classe = processo.getClasse() != null ? processo.getClasse().getNome() : "Classe não informada";
-            String orgao = processo.getOrgaoJulgador() != null ? processo.getOrgaoJulgador().getNome() : "Órgão não informado";
+            String classe = processo.classe() != null ? processo.classe().nome() : "Classe não informada";
+            String orgao = processo.orgaoJulgador() != null ? processo.orgaoJulgador().nome() : "Órgão não informado";
             System.out.printf("Processo %s | Classe: %s | Órgão julgador: %s%n",
-                    processo.getNumeroProcesso(),
+                    processo.numeroProcesso(),
                     classe,
                     orgao);
-            LOGGER.info("Processo {} | Classe: {} | Órgão julgador: {}", processo.getNumeroProcesso(), classe, orgao);
+            LOGGER.info("Processo {} | Classe: {} | Órgão julgador: {}", processo.numeroProcesso(), classe, orgao);
         }
         System.out.flush();
     }
@@ -252,30 +252,30 @@ public class DatajudClient {
     }
 
     private static List<Processo> extrairProcessos(DatajudResponse response) {
-        if (response == null || response.getHits() == null || response.getHits().getHits() == null) {
+        if (response == null || response.hits() == null || response.hits().hits() == null) {
             return Collections.emptyList();
         }
         List<Processo> processos = new ArrayList<>();
-        for (DatajudResponse.ProcessHit hit : response.getHits().getHits()) {
-            if (hit != null && hit.getProcesso() != null) {
-                processos.add(hit.getProcesso());
+        for (DatajudResponse.ProcessHit hit : response.hits().hits()) {
+            if (hit != null && hit.processo() != null) {
+                processos.add(hit.processo());
             }
         }
         return processos;
     }
 
     private static List<String> extrairCursor(DatajudResponse response) {
-        if (response == null || response.getHits() == null || response.getHits().getHits() == null
-                || response.getHits().getHits().isEmpty()) {
+        if (response == null || response.hits() == null || response.hits().hits() == null
+                || response.hits().hits().isEmpty()) {
             return Collections.emptyList();
         }
-        DatajudResponse.ProcessHit ultimo = response.getHits().getHits()
-                .get(response.getHits().getHits().size() - 1);
-        if (ultimo.getSort() == null || ultimo.getSort().isEmpty()) {
+        DatajudResponse.ProcessHit ultimo = response.hits().hits()
+                .get(response.hits().hits().size() - 1);
+        if (ultimo.sort() == null || ultimo.sort().isEmpty()) {
             return Collections.emptyList();
         }
         List<String> cursor = new ArrayList<>();
-        for (Object sortValue : ultimo.getSort()) {
+        for (Object sortValue : ultimo.sort()) {
             if (sortValue == null) {
                 cursor.add("");
             } else if (sortValue instanceof String) {
