@@ -1,11 +1,11 @@
 package br.edu.idp.mcdia.dl.judscraper;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,7 +68,7 @@ public class DatajudClient {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
     }
 
-    public DatajudResponse buscarSentencas(String termoLivre, int tamanhoLote, List<String> searchAfter)
+    public DatajudResponse buscarProcessos(String termoLivre, int tamanhoLote, List<String> searchAfter)
             throws IOException, InterruptedException {
 
         if (termoLivre == null || termoLivre.isBlank()) {
@@ -156,7 +156,7 @@ public class DatajudClient {
             return;
         }
 
-        DatajudClient scraper = new DatajudClient();
+        DatajudClient datajudClient = new DatajudClient();
 
         LOGGER.info("Iniciando coleta do Datajud: termo='{}' | quantidade solicitada={}", DEFAULT_TERM, totalRegistros);
         long inicioExecucao = System.nanoTime();
@@ -175,7 +175,7 @@ public class DatajudClient {
             while (processados < totalRegistros) {
                 int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
                 long inicioChamada = System.nanoTime();
-                DatajudResponse resultado = scraper.buscarSentencas(DEFAULT_TERM, tamanhoLote, cursor);
+                DatajudResponse resultado = datajudClient.buscarProcessos(DEFAULT_TERM, tamanhoLote, cursor);
                 long duracaoChamada = System.nanoTime() - inicioChamada;
                 tempoApiAcumulado += duracaoChamada;
                 chamadasApi++;
