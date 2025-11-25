@@ -143,12 +143,26 @@ public class DatajudClient {
 
         DatajudClient scraper = new DatajudClient();
 
+        LOGGER.info("Iniciando coleta do Datajud: termo='{}' | quantidade solicitada={}", DEFAULT_TERM, totalRegistros);
+        long inicioExecucao = System.nanoTime();
+        long tempoApiAcumulado = 0L;
+        int chamadasApi = 0;
+
         try (DatajudRepository repository = new DatajudRepository(DB_URL, DB_USER, DB_PASSWORD, DB_TABLE, OBJECT_MAPPER)) {
             int processados = 0;
             List<String> cursor = repository.carregarCursor();
             while (processados < totalRegistros) {
                 int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
+                long inicioChamada = System.nanoTime();
                 DatajudResponse resultado = scraper.buscarSentencas(DEFAULT_TERM, tamanhoLote, cursor);
+                long duracaoChamada = System.nanoTime() - inicioChamada;
+                tempoApiAcumulado += duracaoChamada;
+                chamadasApi++;
+                LOGGER.info("Chamada #{} retornou {} registros em {} ms",
+                        chamadasApi,
+                        resultado != null && resultado.getHits() != null ? resultado.getHits().getHits().size() : 0,
+                        Duration.ofNanos(duracaoChamada).toMillis());
+
                 imprimirResumo(resultado);
                 boolean persistiu = salvarProcessosNoBanco(repository, resultado);
                 if (!persistiu || resultado.getHits() == null || resultado.getHits().getHits() == null
@@ -162,7 +176,11 @@ public class DatajudClient {
                     repository.salvarCursor(cursor);
                 }
             }
-            LOGGER.info("Total processado nesta execução: {}", processados);
+            LOGGER.info("Resumo da execução: processos persistidos={} | chamadas_api={} | tempo_api_acumulado={} ms | duração_total={} ms",
+                    processados,
+                    chamadasApi,
+                    Duration.ofNanos(tempoApiAcumulado).toMillis(),
+                    Duration.ofNanos(System.nanoTime() - inicioExecucao).toMillis());
         } catch (Exception e) {
             LOGGER.error("Erro ao buscar dados processuais.", e);
             System.err.println("Erro ao buscar dados processuais: " + e.getMessage());
