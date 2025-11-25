@@ -97,7 +97,7 @@ public class DatajudRepository implements AutoCloseable {
         }
     }
 
-    public void registrarSentenca(String numeroProcesso, java.nio.file.Path arquivo) throws SQLException {
+    public void registrarSentenca(String numeroProcesso, Path arquivo) throws SQLException {
         String sql = "UPDATE " + tableName + " SET sentenca_caminho = ?, sentenca_salva_em = NOW() WHERE numero_processo = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, arquivo != null ? arquivo.toString() : null);
@@ -133,9 +133,9 @@ public class DatajudRepository implements AutoCloseable {
                     JsonNode node = objectMapper.readTree(json);
                     List<String> valores = new ArrayList<>();
                     for (JsonNode valueNode : node) {
-                        if (valueNode.isTextual()) {
-                            valores.add(valueNode.asText());
-                        } else {
+                        if (valueNode != null && valueNode.isString()) {
+                            valores.add(valueNode.asString());
+                        } else if (valueNode != null) {
                             valores.add(valueNode.toString());
                         }
                     }

@@ -1,6 +1,7 @@
 package br.edu.idp.mcdia.dl.judscraper;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -137,7 +138,7 @@ public class DatajudClient {
     public static void main(String[] args) {
         boolean resetCursor = false;
         boolean resetFull = false;
-        Integer totalRegistros = null;
+        int totalRegistros = -1;
 
         for (String arg : args) {
             if ("--reset-full".equalsIgnoreCase(arg)) {
@@ -145,12 +146,12 @@ public class DatajudClient {
                 resetCursor = true;
             } else if ("--reset".equalsIgnoreCase(arg)) {
                 resetCursor = true;
-            } else if (totalRegistros == null) {
+            } else if (totalRegistros < 0) {
                 totalRegistros = Integer.parseInt(arg);
             }
         }
 
-        if (totalRegistros == null || totalRegistros <= 0) {
+        if (totalRegistros <= 0) {
             System.err.println("A quantidade deve ser maior que zero.");
             return;
         }
@@ -201,7 +202,10 @@ public class DatajudClient {
                     chamadasApi,
                     Duration.ofNanos(tempoApiAcumulado).toMillis(),
                     Duration.ofNanos(System.nanoTime() - inicioExecucao).toMillis());
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException | SQLException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             LOGGER.error("Erro ao buscar dados processuais.", e);
             System.err.println("Erro ao buscar dados processuais: " + e.getMessage());
         }
@@ -246,7 +250,7 @@ public class DatajudClient {
             System.out.printf("%d processos persistidos na tabela %s.%n", processos.size(), DB_TABLE);
             LOGGER.info("{} processos persistidos na tabela {}.", processos.size(), DB_TABLE);
             return true;
-        } catch (Exception e) {
+        } catch (IOException | SQLException e) {
             LOGGER.error("Falha ao persistir processos no banco.", e);
             System.err.println("Falha ao persistir processos no banco: " + e.getMessage());
             return false;
@@ -280,8 +284,8 @@ public class DatajudClient {
         for (Object sortValue : ultimo.sort()) {
             if (sortValue == null) {
                 cursor.add("");
-            } else if (sortValue instanceof String) {
-                cursor.add((String) sortValue);
+            } else if (sortValue instanceof String sortString) {
+                cursor.add(sortString);
             } else {
                 cursor.add(sortValue.toString());
             }

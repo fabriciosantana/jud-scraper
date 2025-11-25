@@ -55,8 +55,7 @@ public class TJRSSentenceScraper implements AutoCloseable {
     }
 
     public Optional<Path> baixarSentenca(String numeroProcesso) {
-        Page page = context.newPage();
-        try {
+        try (Page page = context.newPage()) {
             LOGGER.info("Buscando sentença para o processo {}", numeroProcesso);
             page.navigate(consultaUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
             preencherNumeroProcesso(page, numeroProcesso);
@@ -74,9 +73,7 @@ public class TJRSSentenceScraper implements AutoCloseable {
         } catch (Exception e) {
             LOGGER.error("Falha ao coletar a sentença do processo {}.", numeroProcesso, e);
             return Optional.empty();
-        } finally {
-            page.close();
-        }
+        } 
     }
 
     private void preencherNumeroProcesso(Page page, String numeroProcesso) {
@@ -86,7 +83,7 @@ public class TJRSSentenceScraper implements AutoCloseable {
         }
         campo.click();
         campo.fill("");
-        campo.type(numeroProcesso);
+        campo.fill(numeroProcesso);
     }
 
     private Locator localizarCampoProcesso(Page page) {
