@@ -1,4 +1,4 @@
-package br.edu.idp.mcdia.dl.judscraper;
+package br.edu.idp.mcdia.dl.judscraper.repository;
 
 import java.io.IOException;
 import java.nio.file.Path;

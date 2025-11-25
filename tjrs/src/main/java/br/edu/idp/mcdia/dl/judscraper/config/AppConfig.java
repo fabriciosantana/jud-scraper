@@ -1,4 +1,4 @@
-package br.edu.idp.mcdia.dl.judscraper;
+package br.edu.idp.mcdia.dl.judscraper.config;
 
 import java.io.IOException;
 import java.io.InputStream;

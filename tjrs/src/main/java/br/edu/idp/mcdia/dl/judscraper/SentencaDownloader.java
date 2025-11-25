@@ -8,6 +8,9 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import br.edu.idp.mcdia.dl.judscraper.config.AppConfig;
+import br.edu.idp.mcdia.dl.judscraper.repository.DatajudRepository;
+
 public final class SentencaDownloader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SentencaDownloader.class);

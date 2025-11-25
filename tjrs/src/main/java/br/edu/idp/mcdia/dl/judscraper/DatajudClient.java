@@ -14,8 +14,10 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import br.edu.idp.mcdia.dl.judscraper.config.AppConfig;
 import br.edu.idp.mcdia.dl.judscraper.model.DatajudResponse;
 import br.edu.idp.mcdia.dl.judscraper.model.Processo;
+import br.edu.idp.mcdia.dl.judscraper.repository.DatajudRepository;
 import tools.jackson.databind.ObjectMapper;
 
 public class DatajudClient {
