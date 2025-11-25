@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -16,6 +17,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.edu.idp.mcdia.dl.judscraper.model.Processo;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 public class DatajudRepository implements AutoCloseable {
@@ -26,6 +29,7 @@ public class DatajudRepository implements AutoCloseable {
     private final Connection connection;
     private final String tableName;
     private final ObjectMapper objectMapper;
+    private final String cursorTable;
 
     public DatajudRepository(String url, String user, String password, String tableName, ObjectMapper objectMapper) throws SQLException {
         if (url == null || url.isBlank()) {
@@ -35,6 +39,7 @@ public class DatajudRepository implements AutoCloseable {
         this.connection = DriverManager.getConnection(url, user, password);
         this.tableName = sanitizeTableName(tableName);
         this.objectMapper = objectMapper;
+        this.cursorTable = this.tableName + "_cursor";
         criarTabelaSeNecessario();
     }
 
@@ -59,11 +64,17 @@ public class DatajudRepository implements AutoCloseable {
                 "atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()," +
                 "CONSTRAINT uq_numero_processo UNIQUE (numero_processo)" +
                 ")";
+        String cursorSql = "CREATE TABLE IF NOT EXISTS " + cursorTable + " (" +
+                "id SMALLINT PRIMARY KEY DEFAULT 1," +
+                "cursor JSONB," +
+                "atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()" +
+                ")";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
             stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_caminho TEXT");
             stmt.execute("ALTER TABLE " + tableName + " ADD COLUMN IF NOT EXISTS sentenca_salva_em TIMESTAMPTZ");
-            LOGGER.info("Tabela {} disponível para persistência.", tableName);
+            stmt.execute(cursorSql);
+            LOGGER.info("Tabela {} e controle de cursor disponíveis para persistência.", tableName);
         }
     }
 
@@ -91,6 +102,54 @@ public class DatajudRepository implements AutoCloseable {
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, arquivo != null ? arquivo.toString() : null);
             ps.setString(2, numeroProcesso);
+            ps.executeUpdate();
+        }
+    }
+
+    public List<String> carregarCursor() throws SQLException {
+        String sql = "SELECT cursor FROM " + cursorTable + " WHERE id = 1";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                String json = rs.getString(1);
+                if (json == null || json.isBlank()) {
+                    return Collections.emptyList();
+                }
+                try {
+                    JsonNode node = objectMapper.readTree(json);
+                    List<String> valores = new ArrayList<>();
+                    for (JsonNode valueNode : node) {
+                        if (valueNode.isTextual()) {
+                            valores.add(valueNode.asText());
+                        } else {
+                            valores.add(valueNode.toString());
+                        }
+                    }
+                    return valores;
+                } catch (JacksonException e) {
+                    LOGGER.error("Falha ao converter cursor salvo. Reiniciando a partir do início.", e);
+                    return Collections.emptyList();
+                }
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    public void salvarCursor(List<String> cursor) throws SQLException {
+        String json = null;
+        try {
+            if (cursor != null && !cursor.isEmpty()) {
+                json = objectMapper.writeValueAsString(cursor);
+            }
+        } catch (JacksonException e) {
+            LOGGER.error("Não foi possível serializar o cursor de busca.", e);
+            return;
+        }
+
+        String sql = "INSERT INTO " + cursorTable + " (id, cursor, atualizado_em) VALUES (1, ?::jsonb, NOW()) " +
+                "ON CONFLICT (id) DO UPDATE SET cursor = EXCLUDED.cursor, atualizado_em = NOW()";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, json);
             ps.executeUpdate();
         }
     }

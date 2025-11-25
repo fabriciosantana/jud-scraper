@@ -82,6 +82,9 @@ public class DatajudResponse {
         @JsonProperty("_source")
         private Processo processo;
 
+        @JsonProperty("sort")
+        private List<Object> sort;
+
         public String getIndex() {
             return index;
         }
@@ -112,6 +115,14 @@ public class DatajudResponse {
 
         public void setProcesso(Processo processo) {
             this.processo = processo;
+        }
+
+        public List<Object> getSort() {
+            return sort;
+        }
+
+        public void setSort(List<Object> sort) {
+            this.sort = sort;
         }
     }
 }

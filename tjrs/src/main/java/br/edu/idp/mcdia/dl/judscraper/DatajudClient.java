@@ -65,7 +65,7 @@ public class DatajudClient {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
     }
 
-    public DatajudResponse buscarSentencas(String termoLivre, int tamanhoLote, int inicio)
+    public DatajudResponse buscarSentencas(String termoLivre, int tamanhoLote, List<String> searchAfter)
             throws IOException, InterruptedException {
 
         if (termoLivre == null || termoLivre.isBlank()) {
@@ -76,8 +76,8 @@ public class DatajudClient {
             throw new IllegalArgumentException("O tamanho do lote deve estar entre 1 e " + MAX_RESULTADOS + ".");
         }
 
-        String payload = montarPayloadBuscaLivre(termoLivre, tamanhoLote, inicio);
-        LOGGER.info("Consultando Datajud (from={}, size={}) termo '{}'", inicio, tamanhoLote, termoLivre);
+        String payload = montarPayloadBuscaLivre(termoLivre, tamanhoLote, searchAfter);
+        LOGGER.info("Consultando Datajud (size={}) termo '{}' cursor={}", tamanhoLote, termoLivre, searchAfter);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
@@ -99,19 +99,34 @@ public class DatajudClient {
         throw new IOException("Falha ao consultar o Datajud. HTTP " + statusCode + " - " + response.body());
     }
 
-    private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, int inicio) {
+    private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, List<String> searchAfter) {
         String termoSanitizado = termoLivre.replace("\"", "\\\"");
         StringBuilder builder = new StringBuilder();
         builder.append("{\n")
                 .append("  \"size\": ").append(quantidadeResultados).append(",\n")
-                .append("  \"from\": ").append(inicio).append(",\n")
                 .append("  \"query\": {\n")
                 .append("    \"query_string\": {\n")
                 .append("      \"query\": \"").append(termoSanitizado).append("\",\n")
                 .append("      \"default_operator\": \"AND\"\n")
                 .append("    }\n")
-                .append("  }\n")
-                .append("}\n");
+                .append("  },\n")
+                .append("  \"sort\": [\n")
+                .append("    {\"dataHoraUltimaAtualizacao\": {\"order\": \"asc\", \"unmapped_type\": \"date\"}},\n")
+                .append("    {\"numeroProcesso.keyword\": {\"order\": \"asc\"}}\n")
+                .append("  ]");
+
+        if (searchAfter != null && !searchAfter.isEmpty()) {
+            builder.append(",\n  \"search_after\": [");
+            for (int i = 0; i < searchAfter.size(); i++) {
+                if (i > 0) {
+                    builder.append(", ");
+                }
+                builder.append("\"").append(searchAfter.get(i).replace("\"", "\\\"")).append("\"");
+            }
+            builder.append("]");
+        }
+
+        builder.append("\n}\n");
         return builder.toString();
     }
 
@@ -130,10 +145,10 @@ public class DatajudClient {
 
         try (DatajudRepository repository = new DatajudRepository(DB_URL, DB_USER, DB_PASSWORD, DB_TABLE, OBJECT_MAPPER)) {
             int processados = 0;
-            int offset = 0;
+            List<String> cursor = repository.carregarCursor();
             while (processados < totalRegistros) {
                 int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
-                DatajudResponse resultado = scraper.buscarSentencas(DEFAULT_TERM, tamanhoLote, offset);
+                DatajudResponse resultado = scraper.buscarSentencas(DEFAULT_TERM, tamanhoLote, cursor);
                 imprimirResumo(resultado);
                 boolean persistiu = salvarProcessosNoBanco(repository, resultado);
                 if (!persistiu || resultado.getHits() == null || resultado.getHits().getHits() == null
@@ -142,8 +157,12 @@ public class DatajudClient {
                     break;
                 }
                 processados += resultado.getHits().getHits().size();
-                offset += tamanhoLote;
+                cursor = extrairCursor(resultado);
+                if (!cursor.isEmpty()) {
+                    repository.salvarCursor(cursor);
+                }
             }
+            LOGGER.info("Total processado nesta execução: {}", processados);
         } catch (Exception e) {
             LOGGER.error("Erro ao buscar dados processuais.", e);
             System.err.println("Erro ao buscar dados processuais: " + e.getMessage());
@@ -209,4 +228,26 @@ public class DatajudClient {
         return processos;
     }
 
+    private static List<String> extrairCursor(DatajudResponse response) {
+        if (response == null || response.getHits() == null || response.getHits().getHits() == null
+                || response.getHits().getHits().isEmpty()) {
+            return Collections.emptyList();
+        }
+        DatajudResponse.ProcessHit ultimo = response.getHits().getHits()
+                .get(response.getHits().getHits().size() - 1);
+        if (ultimo.getSort() == null || ultimo.getSort().isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> cursor = new ArrayList<>();
+        for (Object sortValue : ultimo.getSort()) {
+            if (sortValue == null) {
+                cursor.add("");
+            } else if (sortValue instanceof String) {
+                cursor.add((String) sortValue);
+            } else {
+                cursor.add(sortValue.toString());
+            }
+        }
+        return cursor;
+    }
 }
