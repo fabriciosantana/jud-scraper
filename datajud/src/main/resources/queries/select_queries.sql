@@ -1,3 +1,6 @@
+select count(*)
+from vw_processos_assuntos;
+
 select assunto_nome, count(*)
 from vw_processos_assuntos
 group by 1
