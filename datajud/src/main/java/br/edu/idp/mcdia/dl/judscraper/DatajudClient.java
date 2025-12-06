@@ -43,7 +43,7 @@ public class DatajudClient {
             CONFIG.require("datajud.db.password")
     );
     private static final String DB_TABLE = CONFIG.getOrDefault("datajud.db.table", "processos_datajud");
-    private static final String DEFAULT_TERM = CONFIG.getOrDefault("datajud.default.term", "improbidade administrativa");
+    private static final String DEFAULT_TERM = CONFIG.getOrDefault("datajud.default.term", "");
     private static final int MAX_RESULTADOS = 100;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -71,16 +71,15 @@ public class DatajudClient {
     public DatajudResponse buscarProcessos(String termoLivre, int tamanhoLote, List<String> searchAfter)
             throws IOException, InterruptedException {
 
-        if (termoLivre == null || termoLivre.isBlank()) {
-            throw new IllegalArgumentException("O termo de busca não pode ser vazio.");
-        }
+        String termoNormalizado = termoLivre == null ? "" : termoLivre.trim();
 
         if (tamanhoLote <= 0 || tamanhoLote > MAX_RESULTADOS) {
             throw new IllegalArgumentException("O tamanho do lote deve estar entre 1 e " + MAX_RESULTADOS + ".");
         }
 
-        String payload = montarPayloadBuscaLivre(termoLivre, tamanhoLote, searchAfter);
-        LOGGER.info("Consultando Datajud (size={}) termo '{}' cursor={}", tamanhoLote, termoLivre, searchAfter);
+        String payload = montarPayloadBuscaLivre(termoNormalizado, tamanhoLote, searchAfter);
+        String termoParaLog = termoNormalizado.isEmpty() ? "<match_all>" : termoNormalizado;
+        LOGGER.info("Consultando Datajud (size={}) termo '{}' cursor={}", tamanhoLote, termoParaLog, searchAfter);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
@@ -103,22 +102,33 @@ public class DatajudClient {
     }
 
     private String montarPayloadBuscaLivre(String termoLivre, int quantidadeResultados, List<String> searchAfter) {
-        String termoSanitizado = termoLivre.replace("\"", "\\\"");
+        String querySection;
+        if (termoLivre != null && !termoLivre.isBlank()) {
+            String termoSanitizado = termoLivre.replace("\"", "\\\"");
+            querySection = String.format("""
+                    {
+                      "query_string": {
+                        "query": "%s",
+                        "default_operator": "AND"
+                      }
+                    }""", termoSanitizado);
+        } else {
+            querySection = """
+                    {
+                      "match_all": {}
+                    }""";
+        }
+
         String payloadTemplate = """
                 {
                   "size": %d,
-                  "query": {
-                    "query_string": {
-                      "query": "%s",
-                      "default_operator": "AND"
-                    }
-                  },
+                  "query": %s,
                   "sort": [
                     {"dataHoraUltimaAtualizacao": {"order": "asc", "unmapped_type": "date"}},
                     {"numeroProcesso.keyword": {"order": "asc"}}
                   ]""";
 
-        StringBuilder builder = new StringBuilder(String.format(payloadTemplate, quantidadeResultados, termoSanitizado));
+        StringBuilder builder = new StringBuilder(String.format(payloadTemplate, quantidadeResultados, querySection));
 
         if (searchAfter != null && !searchAfter.isEmpty()) {
             builder.append(",\n  \"search_after\": [");
@@ -158,7 +168,9 @@ public class DatajudClient {
 
         DatajudClient datajudClient = new DatajudClient();
 
-        LOGGER.info("Iniciando coleta do Datajud: termo='{}' | quantidade solicitada={}", DEFAULT_TERM, totalRegistros);
+        String termoConfigurado = DEFAULT_TERM == null ? "" : DEFAULT_TERM.trim();
+        String termoConfiguradoLog = termoConfigurado.isEmpty() ? "<match_all>" : termoConfigurado;
+        LOGGER.info("Iniciando coleta do Datajud: termo='{}' | quantidade solicitada={}", termoConfiguradoLog, totalRegistros);
         long inicioExecucao = System.nanoTime();
         long tempoApiAcumulado = 0L;
         int chamadasApi = 0;
@@ -175,7 +187,7 @@ public class DatajudClient {
             while (processados < totalRegistros) {
                 int tamanhoLote = Math.min(MAX_RESULTADOS, totalRegistros - processados);
                 long inicioChamada = System.nanoTime();
-                DatajudResponse resultado = datajudClient.buscarProcessos(DEFAULT_TERM, tamanhoLote, cursor);
+                DatajudResponse resultado = datajudClient.buscarProcessos(termoConfigurado, tamanhoLote, cursor);
                 long duracaoChamada = System.nanoTime() - inicioChamada;
                 tempoApiAcumulado += duracaoChamada;
                 chamadasApi++;
