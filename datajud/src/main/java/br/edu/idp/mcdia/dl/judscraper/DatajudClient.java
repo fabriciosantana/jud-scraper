@@ -142,6 +142,7 @@ public class DatajudClient {
         }
 
         builder.append("\n}\n");
+        LOGGER.info("Payload enviado ao Datajud: {}", builder.toString());
         return builder.toString();
     }
 
