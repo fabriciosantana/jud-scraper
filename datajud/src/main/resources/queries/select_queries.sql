@@ -16,10 +16,14 @@ from vw_processos_formato
 group by 1
 order by 2 desc;
 
-select movimento_nome, count(*) 
+select movimento_codigo, movimento_nome, count(*) 
 from vw_processos_movimentos
-group by 1
-order by 2 desc;
+group by 1, 2
+order by 3 desc;
+
+select count(*) 
+from vw_processos_movimentos
+;
 
 select movimento_nome, count(*) 
 from vw_processos_movimentos_complementos
@@ -32,5 +36,8 @@ group by 1
 order by 2 desc;
 
 
-
+select sistema_nome, sistema_codigo, count(*) 
+from vw_processos_sistema
+group by 1, 2
+order by 3 desc;
 
